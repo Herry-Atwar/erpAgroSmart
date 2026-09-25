@@ -1,4 +1,4 @@
-# AgroSmart - AI based erpAgro
+# erpAgroSmart - AI based Agrobusiness Solution
 
 ## Live demo  
 

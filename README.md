@@ -1,12 +1,10 @@
-# erpAgroSmart - AI based Agrobusiness Solution
-
 ## Live demo  
 
 https://inodesain.com/agrosmart
 
 # erpAgroSmart
 
-## AI-Powered Palm Oil Plantation Intelligence
+## AI-Powered Agrobusiness Solution
 
 **IBM Bob Hackathon 2026 Submission**
 

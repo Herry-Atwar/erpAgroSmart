@@ -1,6 +1,6 @@
 ## Live demo  
 
-https://inodesain.com/agrosmart
+https://inodesain.com/erpagrosmart
 
 # erpAgroSmart
 

@@ -1,369 +1,557 @@
 <?php
-/**
- * English language strings for erpAgroSmart Financial Reports
- */
-return [
-    // Financial Reports — main nav/filter labels
-    'financial_report_title'    => 'Plantation Financial Reports',
-    'financial_report_desc'     => 'Comprehensive cost analysis and financial reporting for plantation operations',
-    'fr_profit_loss'            => 'Profit & Loss',
-    'fr_detail_profit_loss'     => 'Detail P&L',
-    'fr_balance_sheet'          => 'Balance Sheet',
-    'fr_detail_balance_sheet'   => 'Detail Balance Sheet',
-    'fr_financial_ratios'       => 'Financial Ratios',
-    'fr_filters'                => 'Filters',
-    'fr_company'                => 'Company',
-    'fr_all_companies'          => 'All Companies',
-    'fr_business_unit'          => 'Business Unit',
-    'fr_all_business_units'     => 'All Business Units',
-    'fr_division'               => 'Division',
-    'fr_all_divisions'          => 'All Divisions',
-    'fr_block'                  => 'Block',
-    'fr_all_blocks'             => 'All Blocks',
-    'fr_activity'               => 'Activity',
-    'fr_all_activities'         => 'All Activities',
-    'fr_cost_category'          => 'Cost Category',
-    'fr_all_categories'         => 'All Categories',
-    'fr_block_status'           => 'Block Status',
-    'fr_all_statuses'           => 'All Statuses',
-    'fr_date_from'              => 'Date From',
-    'fr_date_to'                => 'Date To',
-    'fr_apply'                  => 'Apply',
-    'fr_reset'                  => 'Reset',
-    'fr_report_not_found'       => 'Report not found',
+// Balance Sheet
+// Driven by general_ledger_accounts.account_type — same tables as P&L.
+//
+// account_type → Balance Sheet section:
+//   'asset'     → ASSETS           (debit-normal:  balance = debit − credit)
+//   'liability' → LIABILITIES      (credit-normal: balance = credit − debit)
+//   'equity'    → EQUITY           (credit-normal: balance = credit − debit)
+//
+// Balance Sheet is a POINT-IN-TIME statement:
+//   → uses ALL posted journal entries up to $date_to (ignores $date_from)
+//   → the $where_clause from the parent already includes je.status = 'posted'
+//      and je.entry_date <= :date_to; we rebuild it here without the date_from filter.
 
-    // Income Statement Chart nav
-    'isc_nav_btn'               => 'Income Statement Chart',
-    'bsc_nav_btn'               => 'Balance Sheet Chart',
-    'tb_title'                  => 'Trial Balance',
-    'glr_title'                 => 'General Ledger',
+// ── 0. Optional drill-down filters from Balance Sheet (Grouped) ──────────────
+$bs_filter_group_id = isset($_GET['filter_group_id']) && ctype_digit((string)$_GET['filter_group_id'])
+    ? (int)$_GET['filter_group_id'] : null;
 
-    // Profit & Loss
-    'pl_title'                  => 'Profit and Loss Statement',
-    'pl_period'                 => 'Period',
-    'pl_print'                  => 'Print',
-    'pl_col_account'            => 'Account',
-    'pl_col_current_period'     => 'Current Period',
-    'pl_col_ytd'                => 'Year to Date',
-    'pl_sec_revenue'            => 'REVENUE',
-    'pl_sec_cogs'               => 'COST OF GOODS SOLD',
-    'pl_sec_opex'               => 'OPERATING EXPENSES',
-    'pl_sec_oi'                 => 'OTHER INCOME',
-    'pl_sec_oe'                 => 'OTHER EXPENSES',
-    'pl_sec_tax'                => 'TAX EXPENSE',
-    'pl_no_revenue'             => 'No revenue entries in this period.',
-    'pl_no_cogs'                => 'No COGS entries in this period.',
-    'pl_no_opex'                => 'No operating expense entries in this period.',
-    'pl_no_oi'                  => 'No other income entries in this period.',
-    'pl_no_oe'                  => 'No other expense entries in this period.',
-    'pl_no_tax'                 => 'No tax expense entries in this period.',
-    'pl_total_revenue'          => 'Total Revenue',
-    'pl_total_cogs'             => 'Total Cost of Goods Sold',
-    'pl_total_opex'             => 'Total Operating Expenses',
-    'pl_total_oi'               => 'Total Other Income',
-    'pl_total_oe'               => 'Total Other Expenses',
-    'pl_total_tax'              => 'Total Tax Expense',
-    'pl_abnormal'               => '⚠ Abnormal',
-    'pl_gross_profit_row'       => 'Gross Profit',
-    'pl_gross_formula_row'      => 'Revenue − COGS',
-    'pl_op_profit_row'          => 'Operating Profit',
-    'pl_op_formula_row'         => 'Gross Profit − OpEx',
-    'pl_pbt_row'                => 'Profit Before Tax',
-    'pl_pbt_formula_row'        => 'Operating Profit + Other Income − Other Expenses',
-    'pl_npat_row'               => 'Net Profit After Tax',
-    'pl_npat_formula_row'       => 'PBT − Tax',
-    'pl_gross_profit'           => 'Gross Profit',
-    'pl_op_profit'              => 'Operating Profit',
-    'pl_pbt'                    => 'Profit Before Tax',
-    'pl_npat'                   => 'Net Profit After Tax',
-    'pl_gross_formula'          => 'Revenue − COGS',
-    'pl_op_formula'             => 'Gross Profit − OpEx',
-    'pl_pbt_formula'            => 'Operating Profit ± Other',
-    'pl_npat_formula'           => 'PBT − Tax',
-    'pl_gross_margin'           => 'Gross Margin',
-    'pl_op_margin'              => 'Operating Margin',
-    'pl_pretax_margin'          => 'Pre-tax Margin',
-    'pl_net_margin'             => 'Net Margin',
-    'pl_margin_gross_lbl'       => 'Gross Profit / Revenue',
-    'pl_margin_op_lbl'          => 'Operating Profit / Revenue',
-    'pl_margin_pretax_lbl'      => 'Profit Before Tax / Revenue',
-    'pl_margin_net_lbl'         => 'Net Profit / Revenue',
+// Resolve group name for the banner
+$bs_filter_group_name = null;
+if ($bs_filter_group_id) {
+    $gn = $pdo->prepare("SELECT group_name FROM financial_account_groups WHERE id = ? LIMIT 1");
+    $gn->execute([$bs_filter_group_id]);
+    $bs_filter_group_name = $gn->fetchColumn() ?: null;
+}
 
-    // Detail P&L
-    'pld_title'                 => 'Detail Profit and Loss Statement',
-    'pld_col_code'              => 'Code',
-    'pld_btn_back_pl'           => 'Back to P&L Summary',
-    'pld_btn_back_gl'           => 'Back to General Ledger',
-    'pld_gl_drill_tooltip'      => 'View in General Ledger',
-    'pld_filter_section_label'  => 'Section filter',
-    'pld_filter_section_showing'=> 'Showing accounts in section:',
-    'pld_filter_section_accts'  => 'accounts',
-    'pld_filter_group_label'    => 'Group filter',
-    'pld_filter_group_showing'  => 'Showing accounts in this group',
+// ── 1. Build a point-in-time WHERE clause (≤ date_to only, no date_from) ─────
+$bs_conditions = ["je.status = 'posted'", "je.entry_date <= :bs_date_to"];
+$bs_params     = [':bs_date_to' => $date_to];
 
-    // Balance Sheet (Grouped)
-    'bsg_title'                 => 'Balance Sheet',
-    'bsg_badge'                 => 'Grouped',
-    'bsg_as_at'                 => 'As at',
-    'bsg_balanced_badge'        => 'Balanced',
-    'bsg_view_by_account'       => 'View by Account',
-    'bsg_print'                 => 'Print',
-    'bsg_col_group'             => 'Account Group',
-    'bsg_col_prev'              => 'Previous Balance',
-    'bsg_col_ending'            => 'Ending Balance',
-    'bsg_sec_assets'            => 'ASSETS',
-    'bsg_sec_liabilities'       => 'LIABILITIES',
-    'bsg_sec_equity'            => 'EQUITY',
-    'bsg_no_assets'             => 'No asset groups with balances as at this date.',
-    'bsg_no_liabilities'        => 'No liability groups with balances as at this date.',
-    'bsg_no_equity'             => 'No equity groups with balances as at this date.',
-    'bsg_total_assets_row'      => 'Total Assets',
-    'bsg_total_liab_row'        => 'Total Liabilities',
-    'bsg_total_equity_row'      => 'Total Equity (incl. Current P/L)',
-    'bsg_total_liab_equity'     => 'Total Liabilities + Equity',
-    'bsg_current_pl'            => 'Current Period Profit / (Loss)',
-    'bsg_total_assets'          => 'Total Assets',
-    'bsg_total_liabilities'     => 'Total Liabilities',
-    'bsg_total_equity'          => 'Total Equity',
-    'bsg_incl_pl'               => 'incl. Current Period P/L',
-    'bsg_abnormal'              => '⚠ Abnormal',
-    'bsg_eq_title'              => 'Accounting Equation: Assets = Liabilities + Equity',
-    'bsg_eq_assets'             => 'Assets',
-    'bsg_eq_liabilities'        => 'Liabilities',
-    'bsg_eq_equity'             => 'Equity',
-    'bsg_eq_balanced'           => 'Balanced ✓',
-    'bsg_eq_off_by'             => 'Off by',
-    'bsg_debt_equity_ratio'     => 'Debt-to-Equity Ratio',
-    'bsg_debt_equity_lbl'       => 'Liabilities / Equity',
-    'bsg_equity_ratio'          => 'Equity Ratio',
-    'bsg_equity_ratio_lbl'      => 'Equity / Assets',
-    'bsg_unmapped_warn'         => '%d GL account lines are not mapped to a financial group and will not appear in this report.',
-    'bsg_unmapped_link'         => 'Configure account groups →',
+if ($company_id) {
+    $bs_conditions[] = "je.company_id = :company_id";
+    $bs_params[':company_id'] = $company_id;
+}
+if ($estate_id) {
+    $bs_conditions[] = "je.business_unit_id = :estate_id";
+    $bs_params[':estate_id'] = $estate_id;
+}
+if ($division_id) {
+    $bs_conditions[] = "je.division_id = :division_id";
+    $bs_params[':division_id'] = $division_id;
+}
+if ($bs_filter_group_id) {
+    $bs_conditions[] = "gla.financial_group_id = :bs_fgi";
+    $bs_params[':bs_fgi'] = $bs_filter_group_id;
+}
 
-    // Trial Balance
-    'tb_title'                  => 'Trial Balance',
+$bs_where = implode(' AND ', $bs_conditions);
 
-    // General Ledger
-    'glr_title'                 => 'General Ledger',
-    'glr_period'                => 'Period',
-    'glr_accounts_count'        => 'accounts',
-    'glr_lines_count'           => 'lines',
-    'glr_acct_from'             => 'Account From',
-    'glr_acct_to'               => 'Account To',
-    'glr_all_accounts'          => 'All Accounts',
-    'glr_apply'                 => 'Apply',
-    'glr_clear'                 => 'Clear',
-    'glr_opening_balance'       => 'Opening Balance',
-    'glr_closing_balance'       => 'Closing Balance',
-    'glr_total_debit'           => 'Total Debit',
-    'glr_total_credit'          => 'Total Credit',
-    'glr_col_date'              => 'Date',
-    'glr_col_journal_no'        => 'Journal No.',
-    'glr_col_description'       => 'Description',
-    'glr_col_type'              => 'Type',
-    'glr_col_division'          => 'Division',
-    'glr_col_activity'          => 'Activity',
-    'glr_col_block'             => 'Block',
-    'glr_col_category'          => 'Category',
-    'glr_col_debit'             => 'Debit',
-    'glr_col_credit'            => 'Credit',
-    'glr_col_balance'           => 'Balance',
-    'glr_opening_row'           => 'Opening Balance',
-    'glr_opening_before'        => 'All posted entries before %s',
-    'glr_subtotal'              => 'Subtotal',
-    'glr_grand_total'           => 'Grand Total',
-    'glr_no_transactions'       => 'No posted transactions found for this period.',
-    'glr_type_asset'            => 'Asset',
-    'glr_type_liability'        => 'Liability',
-    'glr_type_equity'           => 'Equity',
-    'glr_type_revenue'          => 'Revenue',
-    'glr_type_cogs'             => 'COGS',
-    'glr_type_opex'             => 'Opex',
-    'glr_type_expense'          => 'Expense',
-    'glr_type_other_income'     => 'Other Income',
-    'glr_type_other_exp'        => 'Other Expenses',
-    'glr_type_tax'              => 'Tax',
-    'glr_back_pl_detail'        => 'Back to Detail P&L',
-    'glr_back_balance_sheet'    => 'Back to Balance Sheet',
-    'glr_back_trial_balance'    => 'Back to Trial Balance',
-    'glr_export_excel'          => 'Export Excel',
-    'glr_print'                 => 'Print',
-    'glr_pld_link_title'        => 'View in Detail P&L',
-    'glr_pld_link_label'        => 'P&L Detail',
-    'glr_filter_link_title'     => 'Filter to this account only',
-    'glr_filter_link_label'     => 'Filter Account',
+// ── 2. Query running balances per GL account ─────────────────────────────────
+$sql = "
+    SELECT
+        gla.id            AS gl_id,
+        gla.account_code,
+        gla.account_name,
+        gla.account_type,
+        gla.parent_account_id,
+        SUM(jel.debit_amount)  AS total_debit,
+        SUM(jel.credit_amount) AS total_credit
+    FROM journal_entries je
+    JOIN journal_entry_lines     jel ON jel.journal_entry_id = je.id
+    JOIN general_ledger_accounts gla ON gla.id               = jel.gl_account_id
+    WHERE $bs_where
+      AND gla.account_type IN ('asset','liability','equity')
+    GROUP BY gla.id, gla.account_code, gla.account_name, gla.account_type, gla.parent_account_id
+    HAVING (SUM(jel.debit_amount) + SUM(jel.credit_amount)) > 0
+    ORDER BY gla.account_type, gla.account_code
+";
+// Shared query-string base for GL drill-down links (org + date params)
+$_bs_gl_qs_base = http_build_query(array_filter([
+    'company_id'  => $company_id,
+    'estate_id'   => $estate_id,
+    'division_id' => $division_id,
+    'date_from'   => $date_from,
+    'date_to'     => $date_to,
+], fn($v) => $v !== '' && $v !== null));
+$stmt = $pdo->prepare($sql);
+$stmt->execute($bs_params);
+$bs_rows = $stmt->fetchAll();
 
-    // Financial Ratios
-    'fr_ratios_title'           => 'Financial Ratios Dashboard',
-    'fr_ratios_period'          => 'P&L Period',
-    'fr_ratios_bs_asof'         => 'Balance Sheet As of',
-    'fr_ratios_print'           => 'Print',
-    'fr_ratios_total_assets'    => 'Total Assets',
-    'fr_ratios_total_liab'      => 'Total Liabilities',
-    'fr_ratios_total_equity'    => 'Total Equity',
-    'fr_ratios_revenue'         => 'Revenue',
-    'fr_ratios_gross_profit'    => 'Gross Profit',
-    'fr_ratios_net_profit'      => 'Net Profit',
-    'fr_ratios_sec_liquidity'   => 'Liquidity',
-    'fr_ratios_sec_liquidity_sub'=> 'Short-term obligations',
-    'fr_ratios_sec_solvency'    => 'Solvency / Leverage',
-    'fr_ratios_sec_solvency_sub'=> 'Long-term financial structure',
-    'fr_ratios_sec_profit'      => 'Profitability',
-    'fr_ratios_sec_profit_sub'  => 'Earnings performance',
-    'fr_ratios_sec_return'      => 'Return Ratios',
-    'fr_ratios_sec_return_sub'  => 'Efficiency of capital use',
-    'fr_ratios_summary_title'   => 'All Ratios Summary',
-    'fr_ratios_col_ratio'       => 'Ratio',
-    'fr_ratios_col_category'    => 'Category',
-    'fr_ratios_col_value'       => 'Value',
-    'fr_ratios_col_formula'     => 'Formula',
-    'fr_ratios_col_benchmark'   => 'Benchmark',
-    'fr_ratios_col_signal'      => 'Signal',
-    'fr_ratio_current'          => 'Current Ratio',
-    'fr_ratio_current_formula'  => 'Current Assets / Current Liabilities',
-    'fr_ratio_quick'            => 'Quick Ratio',
-    'fr_ratio_quick_formula'    => '(Current Assets) / Current Liabilities',
-    'fr_ratio_quick_note'       => 'Note: inventory not separately tracked; quick ratio equals current ratio.',
-    'fr_ratio_working_capital'  => 'Working Capital',
-    'fr_ratio_wc_formula'       => 'Current Assets − Current Liabilities',
-    'fr_ratio_wc_note'          => 'Positive = surplus; Negative = liquidity risk.',
-    'fr_ratio_de'               => 'Debt-to-Equity',
-    'fr_ratio_de_formula'       => 'Total Liabilities / Total Equity',
-    'fr_ratio_debt'             => 'Debt Ratio',
-    'fr_ratio_debt_formula'     => 'Total Liabilities / Total Assets × 100',
-    'fr_ratio_equity'           => 'Equity Ratio',
-    'fr_ratio_equity_formula'   => 'Total Equity / Total Assets × 100',
-    'fr_ratio_gross_margin'     => 'Gross Margin',
-    'fr_ratio_gross_formula'    => 'Gross Profit / Revenue × 100',
-    'fr_ratio_op_margin'        => 'Operating Margin',
-    'fr_ratio_op_formula'       => 'Operating Profit / Revenue × 100',
-    'fr_ratio_net_margin'       => 'Net Profit Margin',
-    'fr_ratio_net_formula'      => 'Net Profit / Revenue × 100',
-    'fr_ratio_ebitda_margin'    => 'EBITDA Margin (proxy)',
-    'fr_ratio_ebitda_formula'   => 'Operating Profit / Revenue × 100',
-    'fr_ratio_roa'              => 'Return on Assets (ROA)',
-    'fr_ratio_roa_formula'      => 'Net Profit / Total Assets × 100',
-    'fr_ratio_roe'              => 'Return on Equity (ROE)',
-    'fr_ratio_roe_formula'      => 'Net Profit / Total Equity × 100',
-    'fr_ratio_asset_turnover'   => 'Asset Turnover',
-    'fr_ratio_at_formula'       => 'Revenue / Total Assets',
-    'fr_label_good'             => 'Good',
-    'fr_label_fair'             => 'Fair',
-    'fr_label_weak'             => 'Weak',
-    'fr_label_high'             => 'High',
-    'fr_label_curr_assets'      => 'Current Assets',
-    'fr_label_curr_liab'        => 'Current Liabilities',
+// ── 2b. Period movement (date_from..date_to) per GL account — for Previous Bal ─
+$bs_period_params = [':p_from' => $date_from, ':p_to' => $date_to];
+$bs_period_extra  = "";
+if ($company_id)  { $bs_period_extra .= " AND je.company_id = :company_id";         $bs_period_params[':company_id']  = $company_id; }
+if ($estate_id)   { $bs_period_extra .= " AND je.business_unit_id = :estate_id";    $bs_period_params[':estate_id']   = $estate_id; }
+if ($division_id) { $bs_period_extra .= " AND je.division_id = :division_id";       $bs_period_params[':division_id'] = $division_id; }
 
-    // Income Statement Chart
-    'isc_title'                 => 'Income Statement Chart',
-    'isc_period_monthly'        => 'Monthly',
-    'isc_period_quarterly'      => 'Quarterly',
-    'isc_period_yearly'         => 'Yearly',
-    'isc_no_data'               => 'No data found for the selected period.',
-    'isc_chart_title'           => 'Income Statement — Trend',
-    'isc_table_title'           => 'Income Statement — Summary Table',
-    'isc_col_metric'            => 'Metric',
-    'isc_col_total'             => 'Total',
-    'isc_da_note'               => 'D&A is identified using the "depreciation" account type. EBITDA = Gross Profit − non-D&A OpEx.',
-    'isc_kpi_revenue'           => 'Revenue',
-    'isc_kpi_gross'             => 'Gross Profit',
-    'isc_kpi_ebitda'            => 'EBITDA',
-    'isc_kpi_da'                => 'D&A',
-    'isc_kpi_ebit'              => 'EBIT (Op. Profit)',
-    'isc_kpi_ebt'               => 'EBT (Pre-tax)',
-    'isc_kpi_tax'               => 'Tax Expense',
-    'isc_kpi_net'               => 'Net Income',
-    'isc_row_revenue'           => 'Revenue',
-    'isc_row_cogs'              => 'Cost of Goods Sold',
-    'isc_row_gross'             => 'Gross Profit',
-    'isc_row_da'                => 'Depreciation & Amortization',
-    'isc_row_ebitda'            => 'EBITDA',
-    'isc_row_ebit'              => 'EBIT (Operating Profit)',
-    'isc_row_other_net'         => 'Other Income / (Expenses), net',
-    'isc_row_ebt'               => 'EBT (Profit Before Tax)',
-    'isc_row_tax'               => 'Tax Expense',
-    'isc_row_net_income'        => 'Net Income',
-    'isc_ds_revenue'            => 'Revenue',
-    'isc_ds_cogs'               => 'COGS',
-    'isc_ds_gross'              => 'Gross Profit',
-    'isc_ds_da'                 => 'D&A',
-    'isc_ds_ebitda'             => 'EBITDA',
-    'isc_ds_ebit'               => 'EBIT',
-    'isc_ds_ebt'                => 'EBT',
-    'isc_ds_net'                => 'Net Income',
-    'isc_margin_gross'          => 'Gross Margin',
-    'isc_margin_ebitda'         => 'EBITDA Margin',
-    'isc_margin_ebit'           => 'EBIT Margin',
-    'isc_margin_ebt'            => 'Pre-tax Margin',
-    'isc_margin_net'            => 'Net Margin',
-    'isc_margin_gross_lbl'      => 'Gross Profit / Revenue',
-    'isc_margin_ebitda_lbl'     => 'EBITDA / Revenue',
-    'isc_margin_ebit_lbl'       => 'EBIT / Revenue',
-    'isc_margin_ebt_lbl'        => 'EBT / Revenue',
-    'isc_margin_net_lbl'        => 'Net Income / Revenue',
+$sql_period = "
+    SELECT
+        gla.id            AS gl_id,
+        gla.account_type,
+        SUM(jel.debit_amount)  AS period_debit,
+        SUM(jel.credit_amount) AS period_credit
+    FROM journal_entries je
+    JOIN journal_entry_lines     jel ON jel.journal_entry_id = je.id
+    JOIN general_ledger_accounts gla ON gla.id               = jel.gl_account_id
+    WHERE je.status = 'posted'
+      AND je.entry_date >= :p_from
+      AND je.entry_date <= :p_to
+      AND gla.account_type IN ('asset','liability','equity')
+      $bs_period_extra
+    GROUP BY gla.id, gla.account_type
+";
+$stmt_period = $pdo->prepare($sql_period);
+$stmt_period->execute($bs_period_params);
 
-    // Balance Sheet Chart
-    'bsc_title'                 => 'Balance Sheet Chart',
-    'bsc_as_at'                 => 'As at',
-    'bsc_balanced'              => 'Balanced',
-    'bsc_unbalanced'            => 'Off by',
-    'bsc_snap_monthly'          => 'Monthly',
-    'bsc_snap_quarterly'        => 'Quarterly',
-    'bsc_snap_yearly'           => 'Yearly',
-    'bsc_no_data'               => 'No balance sheet data found.',
-    'bsc_chart_trend_title'     => 'Balance Sheet Trend',
-    'bsc_chart_trend_sub'       => 'Liabilities + Equity vs Assets',
-    'bsc_chart_donut_title'     => 'Composition',
-    'bsc_table_title'           => 'Position Summary',
-    'bsc_col_item'              => 'Item',
-    'bsc_kpi_assets'            => 'Total Assets',
-    'bsc_kpi_liabilities'       => 'Total Liabilities',
-    'bsc_kpi_equity'            => 'Total Equity',
-    'bsc_kpi_lpe'               => 'Liabilities + Equity',
-    'bsc_kpi_de_ratio'          => 'D/E Ratio',
-    'bsc_kpi_de_lbl'            => 'Liabilities / Equity',
-    'bsc_row_assets'            => 'Assets',
-    'bsc_row_liabilities'       => 'Liabilities',
-    'bsc_row_equity'            => 'Equity',
-    'bsc_row_lpe'               => 'Liabilities + Equity',
-    'bsc_row_check'             => 'Assets = L+E?',
-    'bsc_ds_assets'             => 'Assets',
-    'bsc_ds_liabilities'        => 'Liabilities',
-    'bsc_ds_equity'             => 'Equity',
+// gl_id => signed period movement
+$bs_period_movement = [];
+foreach ($stmt_period->fetchAll(PDO::FETCH_ASSOC) as $pr) {
+    $gid  = $pr['gl_id'];
+    $type = $pr['account_type'];
+    $dbt  = (float)$pr['period_debit'];
+    $cdt  = (float)$pr['period_credit'];
+    $mov  = ($type === 'asset') ? ($dbt - $cdt) : ($cdt - $dbt);
+    $bs_period_movement[$gid] = ($bs_period_movement[$gid] ?? 0) + $mov;
+}
 
-    // Print common
-    'rpt_print_by'              => 'Print by',
-    'rpt_datetime'              => 'Date/Time',
+// ── 3. Bucket by section & compute signed balance ────────────────────────────
+// Asset balance    = debit − credit  (debit-normal, positive = asset exists)
+// Liability/Equity = credit − debit  (credit-normal, positive = balance owed)
+$buckets = ['asset' => [], 'liability' => [], 'equity' => []];
 
-    // Excel export labels (used by export_pl.php)
-    'pl_xls_printed_by'         => 'Print by',
-    'pl_xls_datetime'           => 'Date/Time',
-    'pl_xls_title'              => 'Profit & Loss Statement',
-    'pl_xls_detail_title'       => 'Detail Profit & Loss Statement',
-    'pl_xls_period_prefix'      => 'Period',
-    'pl_xls_to'                 => 'to',
-    'pl_xls_no_transactions'    => '(no transactions)',
-    'pl_xls_col_account_code'   => 'Account Code',
-    'pl_xls_col_account_name'   => 'Account Name',
-    'pl_xls_col_debit'          => 'Debit',
-    'pl_xls_col_credit'         => 'Credit',
-    'pl_xls_col_net'            => 'Net Amount',
-    'pl_xls_sec_revenue'        => 'REVENUE',
-    'pl_xls_sec_cogs'           => 'COST OF GOODS SOLD (COGS)',
-    'pl_xls_sec_opex'           => 'OPERATING EXPENSES',
-    'pl_xls_sec_oi'             => 'OTHER INCOME',
-    'pl_xls_sec_oe'             => 'OTHER EXPENSES',
-    'pl_xls_sec_tax'            => 'TAX EXPENSE',
-    'pl_xls_total_revenue'      => 'Total Revenue',
-    'pl_xls_total_cogs'         => 'Total COGS',
-    'pl_xls_total_opex'         => 'Total Operating Expenses',
-    'pl_xls_total_oi'           => 'Total Other Income',
-    'pl_xls_total_oe'           => 'Total Other Expenses',
-    'pl_xls_total_tax'          => 'Total Tax Expense',
-    'pl_xls_gross_profit'       => 'GROSS PROFIT',
-    'pl_xls_op_profit'          => 'OPERATING PROFIT',
-    'pl_xls_pbt'                => 'PROFIT BEFORE TAX',
-    'pl_xls_npat'               => 'NET PROFIT AFTER TAX',
-    'pl_xls_sheet_name'         => 'P&L',
-    'pl_xls_detail_sheet_name'  => 'Detail P&L',
-];
+foreach ($bs_rows as $row) {
+    $dbt  = (float)$row['total_debit'];
+    $cdt  = (float)$row['total_credit'];
+    $type = $row['account_type'];
+    $gid  = $row['gl_id'];
+
+    $balance = ($type === 'asset') ? ($dbt - $cdt) : ($cdt - $dbt);
+    $mov     = $bs_period_movement[$gid] ?? 0;
+
+    $buckets[$type][] = [
+        'gl_id'    => $gid,
+        'code'     => $row['account_code'],
+        'name'     => $row['account_name'],
+        'debit'    => $dbt,
+        'credit'   => $cdt,
+        'prev_bal' => $balance - $mov,
+        'balance'  => $balance,
+    ];
+}
+
+// ── 4. Section totals ────────────────────────────────────────────────────────
+$total_assets      = array_sum(array_column($buckets['asset'],     'balance'));
+$total_liabilities = array_sum(array_column($buckets['liability'], 'balance'));
+$total_equity_accounts = array_sum(array_column($buckets['equity'], 'balance'));
+
+// Debit / Credit sub-totals per section
+$subtotal_debit_assets      = array_sum(array_column($buckets['asset'],     'debit'));
+$subtotal_credit_assets     = array_sum(array_column($buckets['asset'],     'credit'));
+$subtotal_debit_liabilities = array_sum(array_column($buckets['liability'], 'debit'));
+$subtotal_credit_liabilities= array_sum(array_column($buckets['liability'], 'credit'));
+$subtotal_debit_equity      = array_sum(array_column($buckets['equity'],    'debit'));
+$subtotal_credit_equity     = array_sum(array_column($buckets['equity'],    'credit'));
+
+// Grand totals of Debit / Credit across all BS sections
+$grand_total_debit  = $subtotal_debit_assets  + $subtotal_debit_liabilities  + $subtotal_debit_equity;
+$grand_total_credit = $subtotal_credit_assets + $subtotal_credit_liabilities + $subtotal_credit_equity;
+
+// Previous-balance section totals
+$prev_total_assets          = array_sum(array_column($buckets['asset'],     'prev_bal'));
+$prev_total_liabilities     = array_sum(array_column($buckets['liability'], 'prev_bal'));
+$prev_total_equity_accounts = array_sum(array_column($buckets['equity'],    'prev_bal'));
+
+// Current Period Profit/(Loss) = the gap between Assets and (Liabilities + recorded Equity).
+// This is exactly Revenue − Expenses not yet closed to Retained Earnings.
+// We show it as an implicit equity line so the sheet always balances — no warning needed.
+$current_pl        = $total_assets - ($total_liabilities + $total_equity_accounts);
+$total_equity      = $total_equity_accounts + $current_pl;   // = $total_assets − $total_liabilities
+$total_liab_equity = $total_liabilities + $total_equity;     // always = $total_assets
+$is_balanced       = abs($total_assets - $total_liab_equity) < 0.01; // always true by construction
+
+$prev_current_pl        = $prev_total_assets - ($prev_total_liabilities + $prev_total_equity_accounts);
+$prev_total_equity      = $prev_total_equity_accounts + $prev_current_pl;
+$prev_total_liab_equity = $prev_total_liabilities + $prev_total_equity;
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function bs_fmt_date(string $ymd): string {
+    $d = DateTime::createFromFormat('Y-m-d', $ymd);
+    return $d ? $d->format('d/m/Y') : htmlspecialchars($ymd);
+}
+function bs_fmt_rp(float $v): string {
+    return ($v < 0 ? 'Rp -' : 'Rp ') . number_format(abs($v), 0, ',', '.');
+}
+function bs_fmt(float $v): string {
+    return ($v < 0 ? '-' : '') . number_format(abs($v), 0, ',', '.');
+}
+
+// Render account rows for a section.
+// $asset_side: true for assets (positive balance is normal), false for liabilities/equity
+// $gl_qs_base: shared query-string fragment for GL drill-down links (org + date params)
+function bs_render_rows(array $bucket, bool $asset_side, string $gl_qs_base = ''): void {
+    foreach ($bucket as $item) {
+        $bal_class = $asset_side
+            ? ($item['balance'] >= 0 ? 'text-success' : 'text-danger')
+            : ($item['balance'] >= 0 ? ''             : 'text-danger'); // abnormal negative liability
+        $prev_class = $asset_side
+            ? ($item['prev_bal'] >= 0 ? 'text-primary' : 'text-danger')
+            : ($item['prev_bal'] >= 0 ? 'text-muted'   : 'text-danger');
+        $gl_url = $gl_qs_base && isset($item['gl_id'])
+            ? ('?' . $gl_qs_base . '&report=general_ledger&gl_account_id=' . (int)$item['gl_id'] . '&from=balance_sheet')
+            : '';
+        if ($gl_url) {
+            $href_url = htmlspecialchars($gl_url, ENT_QUOTES);
+            $js_url   = str_replace('&amp;', '&', $href_url);
+            echo '<tr class="bs-row-clickable" style="cursor:pointer;" onclick="window.location=\'' . $js_url . '\'">';
+        } else {
+            echo '<tr>';
+        }
+        echo '<td class="ps-4"><code>' . htmlspecialchars($item['code']) . '</code></td>';
+        echo '<td>';
+        if ($gl_url) {
+            $href_url = htmlspecialchars($gl_url, ENT_QUOTES);
+            echo '<a href="' . $href_url . '" class="text-decoration-none text-body" onclick="event.stopPropagation()">';
+            echo '<i class="bi bi-zoom-in me-1 text-muted" style="font-size:0.75em;"></i>';
+            echo htmlspecialchars($item['name']);
+            echo '</a>';
+        } else {
+            echo htmlspecialchars($item['name']);
+        }
+        echo '</td>';
+        echo '<td class="text-end ' . $prev_class . '" style="font-size:0.9rem;">'
+             . ($item['prev_bal'] != 0 ? bs_fmt($item['prev_bal']) : '-') . '</td>';
+        echo '<td class="text-end">' . ($item['debit']  > 0 ? number_format($item['debit'],  0, ',', '.') : '-') . '</td>';
+        echo '<td class="text-end">' . ($item['credit'] > 0 ? number_format($item['credit'], 0, ',', '.') : '-') . '</td>';
+        echo '<td class="text-end ' . $bal_class . '">' . bs_fmt($item['balance']) . '</td>';
+        echo '<td class="text-center no-print" style="width:38px;">';
+        if ($gl_url) {
+            $href_url = htmlspecialchars($gl_url, ENT_QUOTES);
+            echo '<a href="' . $href_url . '" '
+               . 'class="btn btn-sm p-0 lh-1" style="color:#166c82;" '
+               . 'title="View in General Ledger" onclick="event.stopPropagation()"><i class="bi bi-journal-richtext"></i></a>';
+        }
+        echo '</td>';
+        echo '</tr>';
+    }
+}
+?>
+
+<!-- Header -->
+<?php
+$_bs_back_to_group_url = '?' . http_build_query(array_filter([
+    'report'      => 'balance_sheet_group',
+    'company_id'  => $company_id,
+    'estate_id'   => $estate_id,
+    'division_id' => $division_id,
+    'date_from'   => $date_from,
+    'date_to'     => $date_to,
+], fn($v) => $v !== '' && $v !== null));
+$_bs_from = $_GET['from'] ?? '';
+?>
+<div class="row mb-3">
+    <div class="col-md-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h4><i class="bi bi-bank"></i> Balance Sheet
+                <?php if ($bs_filter_group_name): ?>
+                    <span class="badge ms-2 fw-normal" style="font-size:0.6em;background-color:#166c82;">
+                        <i class="bi bi-funnel-fill"></i> <?= htmlspecialchars($bs_filter_group_name) ?>
+                    </span>
+                <?php endif; ?>
+                </h4>
+                <p class="text-muted mb-0">As at <?= bs_fmt_date($date_to) ?>
+                    <span class="badge bg-success ms-2"><i class="bi bi-check-circle"></i> Balanced</span>
+                </p>
+            </div>
+            <div class="d-flex gap-2 no-print">
+                <?php if ($_bs_from === 'general_ledger'): ?>
+                    <?php
+                    // Build back-to-GL URL preserving all org + date params
+                    $_bs_back_gl_url = '?' . http_build_query(array_filter([
+                        'report'      => 'general_ledger',
+                        'company_id'  => $company_id,
+                        'estate_id'   => $estate_id,
+                        'division_id' => $division_id,
+                        'date_from'   => $date_from,
+                        'date_to'     => $date_to,
+                    ], fn($v) => $v !== '' && $v !== null));
+                    ?>
+                    <a href="<?= htmlspecialchars($_bs_back_gl_url) ?>" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-arrow-left"></i> Back to General Ledger
+                    </a>
+                <?php elseif ($bs_filter_group_name): ?>
+                    <!-- "Back to Grouped View" already shown in alert below -->
+                <?php else: ?>
+                    <a href="<?= htmlspecialchars($_bs_back_to_group_url) ?>" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-arrow-left"></i> Back to Grouped View
+                    </a>
+                <?php endif; ?>
+                <button onclick="exportToExcel('balance_sheet')" class="btn btn-success btn-sm">
+                    <i class="bi bi-file-earmark-excel"></i> Export Excel
+                </button>
+                <button onclick="printDetailBS()" class="btn btn-secondary btn-sm">
+                    <i class="bi bi-printer"></i> Print
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<?php if ($bs_filter_group_name): ?>
+<?php
+$_bs_back_url = '?' . http_build_query(array_filter([
+    'report'      => 'balance_sheet_group',
+    'company_id'  => $company_id,
+    'estate_id'   => $estate_id,
+    'division_id' => $division_id,
+    'date_from'   => $date_from,
+    'date_to'     => $date_to,
+], fn($v) => $v !== '' && $v !== null));
+?>
+<div class="alert alert-info d-flex align-items-center gap-3 py-2 no-print" style="border-left:4px solid #166c82;">
+    <i class="bi bi-funnel-fill" style="color:#166c82;font-size:1.1rem;"></i>
+    <div class="flex-grow-1">
+        Filtered by group: <strong><?= htmlspecialchars($bs_filter_group_name) ?></strong>
+        — showing only accounts in this group as at <?= bs_fmt_date($date_to) ?>
+    </div>
+    <a href="<?= htmlspecialchars($_bs_back_url) ?>" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Back to Grouped View
+    </a>
+</div>
+<?php endif; ?>
+
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card text-white" style="background-color:<?= $total_assets >= 0 ? '#1565c0' : '#e65100' ?>;">
+            <div class="card-body p-3">
+                <h6 class="card-title mb-1">Total Assets<?= $total_assets < 0 ? ' ⚠ Abnormal' : '' ?></h6>
+                <h5 class="mb-0"><?= bs_fmt_rp($total_assets) ?></h5>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-white" style="background-color:<?= $total_liabilities >= 0 ? '#c62828' : '#e65100' ?>;">
+            <div class="card-body p-3">
+                <h6 class="card-title mb-1">Total Liabilities<?= $total_liabilities < 0 ? ' ⚠ Abnormal' : '' ?></h6>
+                <h5 class="mb-0"><?= bs_fmt_rp($total_liabilities) ?></h5>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-white" style="background-color:<?= $total_equity >= 0 ? '#2e7d32' : '#e65100' ?>;">
+            <div class="card-body p-3">
+                <h6 class="card-title mb-1">Total Equity<?= $total_equity < 0 ? ' ⚠ Abnormal' : '' ?></h6>
+                <h5 class="mb-0"><?= bs_fmt_rp($total_equity) ?></h5>
+                <small class="opacity-75">incl. Current Period P/L</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Print area wrapper (table only) ─────────────────────────────────────── -->
+<style>.bs-row-clickable:hover td { background-color: #e3f2fd !important; }</style>
+
+<div id="bs-print-area"
+     data-date-to="<?= htmlspecialchars($date_to) ?>">
+
+<!-- Balance Sheet Table -->
+<div class="card">
+    <div class="card-header text-white" style="background-color:#166c82;">
+        <h5 class="mb-0"><i class="bi bi-table"></i> Balance Sheet — as at <?= bs_fmt_date($date_to) ?></h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-bordered mb-0" id="bsTable">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width:9%">Code</th>
+                        <th style="width:32%">Account</th>
+                        <th class="text-end text-muted" style="width:14%;font-size:0.9rem;">Previous Balance</th>
+                        <th class="text-end" style="width:13%">Debit</th>
+                        <th class="text-end" style="width:13%">Credit</th>
+                        <th class="text-end" style="width:13%">Ending Balance</th>
+                        <th class="no-print" style="width:4%;text-align:center;" title="General Ledger drill-down"><i class="bi bi-journal-richtext" style="color:#166c82;"></i></th>
+                    </tr>
+                </thead>
+                <tbody>
+
+                    <!-- ══════════════════════════════════════════
+                         ASSETS
+                    ══════════════════════════════════════════ -->
+                    <?php if (!$bs_filter_group_id || !empty($buckets['asset'])): ?>
+                    <tr style="background-color:#e3f2fd;">
+                        <td colspan="7"><strong><i class="bi bi-building text-primary"></i> ASSETS</strong></td>
+                    </tr>
+                    <?php if (empty($buckets['asset'])): ?>
+                    <tr><td colspan="7" class="text-center text-muted ps-4">No asset data as at this date</td></tr>
+                    <?php else: bs_render_rows($buckets['asset'], true, $_bs_gl_qs_base); endif; ?>
+                    <tr style="background-color:<?= $total_assets >= 0 ? '#bbdefb' : '#ffe0b2' ?>; font-weight:bold; border-top:2px solid #90caf9;">
+                        <td colspan="2"><strong>TOTAL ASSETS<?= $total_assets < 0 ? ' (Abnormal)' : '' ?></strong></td>
+                        <td class="text-end text-muted"><?= bs_fmt_rp($prev_total_assets) ?></td>
+                        <td class="text-end"><?= $subtotal_debit_assets  != 0 ? number_format($subtotal_debit_assets,  0, ',', '.') : '–' ?></td>
+                        <td class="text-end"><?= $subtotal_credit_assets != 0 ? number_format($subtotal_credit_assets, 0, ',', '.') : '–' ?></td>
+                        <td class="text-end <?= $total_assets >= 0 ? 'text-primary' : 'text-danger' ?>">
+                            <strong><?= bs_fmt_rp($total_assets) ?></strong>
+                        </td>
+                        <td class="no-print"></td>
+                    </tr>
+                    <?php endif; ?>
+
+                    <!-- ══════════════════════════════════════════
+                         LIABILITIES
+                    ══════════════════════════════════════════ -->
+                    <?php if (!$bs_filter_group_id || !empty($buckets['liability'])): ?>
+                    <tr style="background-color:#fce4e4;">
+                        <td colspan="7"><strong><i class="bi bi-arrow-left-circle-fill text-danger"></i> LIABILITIES</strong></td>
+                    </tr>
+                    <?php if (empty($buckets['liability'])): ?>
+                    <tr><td colspan="7" class="text-center text-muted ps-4">No liability data as at this date</td></tr>
+                    <?php else: bs_render_rows($buckets['liability'], false, $_bs_gl_qs_base); endif; ?>
+                    <tr style="background-color:<?= $total_liabilities >= 0 ? '#ffcdd2' : '#c8e6c9' ?>; font-weight:bold; border-top:2px solid #ef9a9a;">
+                        <td colspan="2"><strong>TOTAL LIABILITIES<?= $total_liabilities < 0 ? ' (Abnormal)' : '' ?></strong></td>
+                        <td class="text-end text-muted"><?= bs_fmt_rp($prev_total_liabilities) ?></td>
+                        <td class="text-end"><?= $subtotal_debit_liabilities  != 0 ? number_format($subtotal_debit_liabilities,  0, ',', '.') : '–' ?></td>
+                        <td class="text-end"><?= $subtotal_credit_liabilities != 0 ? number_format($subtotal_credit_liabilities, 0, ',', '.') : '–' ?></td>
+                        <td class="text-end <?= $total_liabilities >= 0 ? 'text-danger' : 'text-success' ?>">
+                            <strong><?= bs_fmt_rp($total_liabilities) ?></strong>
+                        </td>
+                        <td class="no-print"></td>
+                    </tr>
+                    <?php endif; ?>
+
+                    <!-- ══════════════════════════════════════════
+                         EQUITY
+                    ══════════════════════════════════════════ -->
+                    <?php if (!$bs_filter_group_id || !empty($buckets['equity'])): ?>
+                    <tr style="background-color:#e8f5e9;">
+                        <td colspan="7"><strong><i class="bi bi-graph-up-arrow text-success"></i> EQUITY</strong></td>
+                    </tr>
+                    <?php if (empty($buckets['equity'])): ?>
+                    <?php if (!$bs_filter_group_id): ?>
+                    <tr><td colspan="7" class="text-center text-muted ps-4">No equity data as at this date</td></tr>
+                    <?php endif; ?>
+                    <?php else: bs_render_rows($buckets['equity'], false, $_bs_gl_qs_base); endif; ?>
+
+                    <!-- Current Period Profit / (Loss) — computed to make the sheet balance -->
+                    <?php if (!$bs_filter_group_id): ?>
+                    <tr class="fst-italic" style="background-color:#f1f8e9;">
+                        <td class="ps-4"><code>—</code></td>
+                        <td>Current Period Profit / (Loss)</td>
+                        <td class="text-end <?= $prev_current_pl >= 0 ? 'text-muted' : 'text-danger' ?>"><?= bs_fmt($prev_current_pl) ?></td>
+                        <td class="text-end">-</td>
+                        <td class="text-end">-</td>
+                        <td class="text-end <?= $current_pl >= 0 ? 'text-success' : 'text-danger' ?>">
+                            <?= bs_fmt($current_pl) ?>
+                        </td>
+                        <td class="no-print"></td>
+                    </tr>
+                    <?php endif; ?>
+
+                    <tr style="background-color:<?= $total_equity >= 0 ? '#c8e6c9' : '#ffe0b2' ?>; font-weight:bold; border-top:2px solid #a5d6a7;">
+                        <td colspan="2"><strong>TOTAL EQUITY</strong></td>
+                        <td class="text-end text-muted"><?= bs_fmt_rp($prev_total_equity) ?></td>
+                        <td class="text-end"><?= $subtotal_debit_equity  != 0 ? number_format($subtotal_debit_equity,  0, ',', '.') : '–' ?></td>
+                        <td class="text-end"><?= $subtotal_credit_equity != 0 ? number_format($subtotal_credit_equity, 0, ',', '.') : '–' ?></td>
+                        <td class="text-end <?= $total_equity >= 0 ? 'text-success' : 'text-danger' ?>">
+                            <strong><?= bs_fmt_rp($total_equity) ?></strong>
+                        </td>
+                        <td class="no-print"></td>
+                    </tr>
+                    <?php endif; ?>
+
+                    <!-- ══════════════════════════════════════════
+                         TOTAL LIABILITIES + EQUITY
+                    ══════════════════════════════════════════ -->
+                    <tr style="background-color:#b2dfdb; font-weight:bold; font-size:1.1em; border-top:2px solid #80cbc4;">
+                        <td colspan="2"><strong>TOTAL LIABILITIES + EQUITY</strong></td>
+                        <td class="text-end text-muted"><?= bs_fmt_rp($prev_total_liab_equity) ?></td>
+                        <td class="text-end"><?= $grand_total_debit  != 0 ? number_format($grand_total_debit,  0, ',', '.') : '–' ?></td>
+                        <td class="text-end"><?= $grand_total_credit != 0 ? number_format($grand_total_credit, 0, ',', '.') : '–' ?></td>
+                        <td class="text-end text-success">
+                            <strong><?= bs_fmt_rp($total_liab_equity) ?></strong>
+                        </td>
+                        <td class="no-print"></td>
+                    </tr>
+
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+</div><!-- /#bs-print-area -->
+
+<!-- Accounting Equation Check -->
+<?php if (!$bs_filter_group_id && ($total_assets != 0 || $total_liab_equity != 0)): ?>
+<div class="row mt-3 no-print">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="text-muted mb-2">Accounting Equation: Assets = Liabilities + Equity</h6>
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="text-center px-3">
+                        <div class="text-muted small">Assets</div>
+                        <strong class="<?= $total_assets >= 0 ? 'text-primary' : 'text-danger' ?>">
+                            <?= bs_fmt_rp($total_assets) ?>
+                        </strong>
+                    </div>
+                    <div class="text-muted fw-bold">=</div>
+                    <div class="text-center px-3">
+                        <div class="text-muted small">Liabilities</div>
+                        <strong class="text-danger"><?= bs_fmt_rp($total_liabilities) ?></strong>
+                    </div>
+                    <div class="text-muted fw-bold">+</div>
+                    <div class="text-center px-3">
+                        <div class="text-muted small">Equity</div>
+                        <strong class="text-success"><?= bs_fmt_rp($total_equity) ?></strong>
+                    </div>
+                    <div class="ms-3">
+                        <?php if ($is_balanced): ?>
+                        <span class="badge bg-success fs-6"><i class="bi bi-check-circle"></i> Balanced</span>
+                        <?php else: ?>
+                        <span class="badge bg-warning text-dark fs-6">
+                            <i class="bi bi-exclamation-triangle"></i>
+                            Off by <?= bs_fmt_rp(abs($total_assets - $total_liab_equity)) ?>
+                        </span>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h6 class="text-muted">Debt-to-Equity Ratio</h6>
+                <?php if ($total_equity != 0): ?>
+                <h4 class="text-primary">
+                    <?= number_format($total_liabilities / $total_equity, 2) ?>x
+                </h4>
+                <small class="text-muted">Liabilities / Equity</small>
+                <?php else: ?>
+                <span class="text-muted">—</span>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h6 class="text-muted">Equity Ratio</h6>
+                <?php if ($total_assets != 0): ?>
+                <h4 class="<?= ($total_equity / $total_assets) >= 0 ? 'text-success' : 'text-danger' ?>">
+                    <?= number_format(($total_equity / $total_assets) * 100, 1) ?>%
+                </h4>
+                <small class="text-muted">Equity / Assets</small>
+                <?php else: ?>
+                <span class="text-muted">—</span>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
+
+<?php // Powered by IBM Bob ?>

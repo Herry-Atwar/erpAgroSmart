@@ -1,7 +1,6 @@
 
-// `victory-vendor/d3-ease` (CommonJS)
+// `victory-vendor/d3-ease` (ESM)
 // See upstream license: https://github.com/d3/d3-ease/blob/main/LICENSE
 //
-// This file only exists for tooling that doesn't work yet with package.json:exports
-// by proxying through the CommonJS version.
-module.exports = require("./lib/d3-ease");
+// Our ESM package uses the underlying installed dependencies of `node_modules/d3-ease`
+export * from "d3-ease";

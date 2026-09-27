@@ -2,7 +2,6 @@
 
 https://inodesain.com/erpagrosmart
 
-Youtube : https://www.youtube.com/watch?v=2ZcioM2OtCA
 
 # erpAgroSmart
 
